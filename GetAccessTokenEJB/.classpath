@@ -18,6 +18,5 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="con" path="com.sap.ext.libs.xpi.classpathContainer/adapter"/>
-	<classpathentry kind="lib" path="C:/Users/xjehj/OneDrive - Ørsted/Desktop/httpclient-0.3-3.jar"/>
 	<classpathentry kind="output" path="build/classes"/>
 </classpath>
