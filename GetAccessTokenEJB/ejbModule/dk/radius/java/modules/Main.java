@@ -16,6 +16,7 @@ import javax.ejb.Remote;
 import javax.ejb.RemoteHome;
 import javax.ejb.Stateless;
 
+import com.google.gson.Gson;
 import com.sap.aii.af.lib.mp.module.Module;
 import com.sap.aii.af.lib.mp.module.ModuleContext;
 import com.sap.aii.af.lib.mp.module.ModuleData;
@@ -94,17 +95,17 @@ public class Main implements Module {
 
 	private void processAccessToken(ModuleData inputModuleData, Message msg) {		
 		// Get access token
-		String accessToken = getAccessToken();
+		getAccessToken();
 		
 		// Set access token in header
-		setDynamicConfiguration(msg, "accessTokenHeader", "http://sap.com/xi/XI/System/REST", accessToken);
+		setDynamicConfiguration(msg, "accessTokenHeader", "http://sap.com/xi/XI/System/REST", ac.getAccessToken());
 		
 		// Set message data with new headers
 		inputModuleData.setPrincipalData(msg);
 	}
 
 	
-	private String getAccessToken() {
+	private void getAccessToken() {
 		try {
 			URL url = new URL(ac.getAuthenticationUrl());
 			HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -118,24 +119,35 @@ public class Main implements Module {
 
 			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Headers: " + con.getRequestProperties().toString());
 
-			String response = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))
-		      .lines()
-		      .collect(Collectors.joining("\n"));
-				
-			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Response: " + response);
-			
+
+			if (con.getResponseCode() == 200) {
+				extractAccessTokenFromAuthResponse(con);
+			} else {
+				// TODO: Error handling
+			}
 		} catch (MalformedURLException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
-		// TODO Auto-generated method stub
-		return "jesperTesterAccessTokenModul";
 	}
 
 	
+	private void extractAccessTokenFromAuthResponse(HttpURLConnection con) throws IOException {
+		// Convert response to string
+		String response = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))
+			      .lines()
+			      .collect(Collectors.joining("\n"));
+
+		audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Response: " + response);
+		
+		// Get access token data from response
+		Gson gson = new Gson();
+		ac = gson.fromJson(response, AccessToken.class);
+		
+		audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "AccessToken found: " + ac.getAccessToken());
+	}
+
 	private void setDynamicConfiguration(Message msg, String propertyName, String propertyNamespace, String propertyValue) {
 		
 		try {

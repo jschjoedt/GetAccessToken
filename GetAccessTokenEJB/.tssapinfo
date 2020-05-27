@@ -2,8 +2,9 @@
 <TSSAP-INFO>
 
 
+
 <Properties>
-<Property key="j2ee.archive.name" value="GetAccessTokenEAR.jar"/>
+<Property key="j2ee.archive.name" value="GetAccessTokenEJB.jar"/>
 <Property key="j2ee.archive.location" value="/"/>
 </Properties>
 </TSSAP-INFO>

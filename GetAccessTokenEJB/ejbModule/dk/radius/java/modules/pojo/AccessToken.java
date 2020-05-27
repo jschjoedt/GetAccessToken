@@ -1,9 +1,12 @@
 package dk.radius.java.modules.pojo;
 
+import com.google.gson.annotations.SerializedName;
+
 public class AccessToken {
 	private String authenticationUrl;
 	private String clientId;
 	private String clientSecret;
+	@SerializedName("access_token")
 	private String accessToken;
 	private String apiVersion = "v3";
 	private String grantType = "client_credentials";
