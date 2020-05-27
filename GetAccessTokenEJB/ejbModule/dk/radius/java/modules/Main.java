@@ -35,6 +35,7 @@ import com.sap.engine.interfaces.messaging.api.exception.InvalidParamException;
 import com.sap.engine.interfaces.messaging.api.exception.MessagingException;
 
 import dk.radius.java.modules.pojo.DO_AccessToken;
+import dk.radius.java.modules.pojo.DO_AccessTokenError;
 import dk.radius.java.modules.pojo.DO_Authentication;
 
 /**
@@ -51,6 +52,7 @@ public class Main implements Module {
 	private MessageKey msgKey = null;
 	private Message msg = null;
 	private DO_Authentication ac = new DO_Authentication();
+	Gson gson = new Gson();
 
 
 	@PostConstruct
@@ -182,7 +184,6 @@ public class Main implements Module {
 
 		try {
 			// Get access token data from response
-			Gson gson = new Gson();
 			at = gson.fromJson(response, DO_AccessToken.class);
 
 			if (ac.isDebugMode()) {
@@ -206,7 +207,11 @@ public class Main implements Module {
 					.collect(Collectors.joining("\n"));
 
 			if (con.getResponseCode() != 200) {
-				String msg = "Error getting accesstoken: " + con.getResponseCode() + ": " + con.getResponseMessage();
+				// Get error data from json response
+				DO_AccessTokenError ate = gson.fromJson(response, DO_AccessTokenError.class);
+				
+				// Throw exception
+				String msg = "Error getting AccessToken with server code: " + con.getResponseCode() + " and message: " + ate.message;
 				throw new AccessTokenException(msg);
 			}
 
