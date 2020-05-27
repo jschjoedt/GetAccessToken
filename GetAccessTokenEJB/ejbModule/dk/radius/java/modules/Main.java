@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
@@ -80,8 +79,16 @@ public class Main implements Module {
 			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "**** GetAccessToken: Module start ****");
 		}
 
-		// Start processing access token
-		processAccessToken(inputModuleData, msg);
+		try {
+			// Start processing access token
+			processAccessToken(inputModuleData, msg);
+			
+		} catch (AccessTokenException e) {
+			// Write error to log
+			audit.addAuditLogEntry(msgKey, AuditLogStatus.ERROR, e.getMessage());
+			// Terminate processing
+			throw new RuntimeException(e.getMessage());
+		}
 
 
 		if (ac.isDebugMode()) {
@@ -102,7 +109,7 @@ public class Main implements Module {
 		ac.setDebugMode(Boolean.parseBoolean(moduleContext.getContextData("debugEnabled")));
 	}
 
-	private void processAccessToken(ModuleData inputModuleData, Message msg) {		
+	private void processAccessToken(ModuleData inputModuleData, Message msg) throws AccessTokenException {		
 		// Get access token
 		getAccessToken();
 
@@ -114,68 +121,83 @@ public class Main implements Module {
 	}
 
 
-	private void getAccessToken() {
+	private void getAccessToken() throws AccessTokenException {
+		
+		// Create connection to authentication server
+		HttpURLConnection con = createAccessTokenConnection();
+		
+		// Get data from response
+		extractAccessTokenFromAuthResponse(con);
+	}
+
+
+	private HttpURLConnection createAccessTokenConnection() throws AccessTokenException {
+		HttpURLConnection con = null;
 		try {
-
-			if (ac.isDebugMode()) {
-				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Requesting access token from url: " + ac.getAuthenticationUrl());
-			}
-
 			URL url = new URL(ac.getAuthenticationUrl());
-			HttpURLConnection con = (HttpURLConnection) url.openConnection();
+			con = (HttpURLConnection) url.openConnection();
 			con.setRequestMethod("GET");
 
-			// Create headers
-			con.setRequestProperty("client-id", ac.getClientId());
-			con.setRequestProperty("client-secret", ac.getClientSecret());
-			con.setRequestProperty("grant-type", ac.getGrantType());
-			con.setRequestProperty("api-version", ac.getApiVersion());
+			createRequestHeaders(con);
 
 			if (ac.isDebugMode()) {
-				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Using headers: " + con.getRequestProperties().toString());
+				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Requesting AccessToken from url: " + ac.getAuthenticationUrl());
 			}
 
-			extractAccessTokenFromAuthResponse(con);
-
-
-		} catch (MalformedURLException e) {
-			// TODO: Raise specific exception
-			audit.addAuditLogEntry(msgKey, AuditLogStatus.ERROR, "MalformedURLException: " + e.getMessage());
 		} catch (IOException e) {
-			// TODO: Raise specific exception
-			audit.addAuditLogEntry(msgKey, AuditLogStatus.ERROR, "IOException: " + e.getMessage());
+			String errorMessage = "Error creating Http connection to authentication server with url: " + ac.getAuthenticationUrl();
+			throw new AccessTokenException(errorMessage);
 		}
+		
+		return con;
 	}
 
+	private void createRequestHeaders(HttpURLConnection con) {
 
-	private void extractAccessTokenFromAuthResponse(HttpURLConnection con) {
-		
+		if (ac.isDebugMode()) {
+			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Creating request headers based on module parameters..." );
+		}
+
+		con.setRequestProperty("client-id", ac.getClientId());
+		con.setRequestProperty("client-secret", ac.getClientSecret());
+		con.setRequestProperty("grant-type", ac.getGrantType());
+		con.setRequestProperty("api-version", ac.getApiVersion());
+
+
+	}
+
+	private void extractAccessTokenFromAuthResponse(HttpURLConnection con) throws AccessTokenException {
+		// Get response string
 		String response = convertConnectionResponseToString(con);
 
+		// Get access token data from response (json)
 		DO_AccessToken at = getAccessTokenDataFromResponse(response);
-		
-		ac.setAccessTokenObject(at);
 
+		// Set access token data
+		ac.setAccessTokenObject(at);
 	}
 
-	private DO_AccessToken getAccessTokenDataFromResponse(String response) {
-		// Get access token data from response
+	private DO_AccessToken getAccessTokenDataFromResponse(String response) throws AccessTokenException {
 		DO_AccessToken at = null;
+
 		try {
+			// Get access token data from response
 			Gson gson = new Gson();
-			 at = gson.fromJson(response, DO_AccessToken.class);
+			at = gson.fromJson(response, DO_AccessToken.class);
 
 			if (ac.isDebugMode()) {
 				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "AccessToken exctracted from response: " + at.accessToken);
 			}
 		} catch (JsonSyntaxException e) {
-			// TODO: handle exception
+			String errorMessage = "Error parsing json response: " + response;
+			throw new AccessTokenException(errorMessage);
 		}
-		
+
+		// Return access token object
 		return at;
 	}
 
-	private String convertConnectionResponseToString(HttpURLConnection con) {
+	private String convertConnectionResponseToString(HttpURLConnection con) throws AccessTokenException {
 		String response = null;
 		try {
 			// Convert response to string
@@ -184,22 +206,22 @@ public class Main implements Module {
 					.collect(Collectors.joining("\n"));
 
 			if (con.getResponseCode() != 200) {
-				audit.addAuditLogEntry(msgKey, AuditLogStatus.ERROR, "Error getting accesstoken: " + con.getResponseCode() + ": " + con.getResponseMessage());
-				throw new RuntimeException("DANG!");
+				String msg = "Error getting accesstoken: " + con.getResponseCode() + ": " + con.getResponseMessage();
+				throw new AccessTokenException(msg);
 			}
 
 			if (ac.isDebugMode()) {
-				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Response data: " + response);
+				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Authentication server returned code: " + con.getResponseCode());
 			}
-			
+
 		} catch (IOException e) {
-			// TODO: Raise specific exeption
+			
 		}
-		
+
 		return response;
 	}
 
-	private void setDynamicConfiguration(Message msg, String propertyName, String propertyNamespace, String propertyValue) {
+	private void setDynamicConfiguration(Message msg, String propertyName, String propertyNamespace, String propertyValue) throws AccessTokenException {
 
 		try {
 			MessagePropertyKey mpk = new MessagePropertyKey(propertyName, propertyNamespace);
@@ -209,8 +231,8 @@ public class Main implements Module {
 				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Setting dynamic header: \"" + propertyName + "\": " + propertyValue);
 			}
 		} catch (InvalidParamException e) {
-			// TODO: Raise specific exception
-			throw new RuntimeException("Error setting 'accessTokenHeader': " + e.getMessage());
+			String errorMessage = "Error setting \"accessTokenHeader\" in dynamic configuration: " + e.getMessage();
+			throw new AccessTokenException(errorMessage);
 		}
 	}
 
