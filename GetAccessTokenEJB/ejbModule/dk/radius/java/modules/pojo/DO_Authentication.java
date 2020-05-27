@@ -1,15 +1,13 @@
 package dk.radius.java.modules.pojo;
 
-import com.google.gson.annotations.SerializedName;
-
-public class AccessToken {
+public class DO_Authentication {
 	private String authenticationUrl;
 	private String clientId;
 	private String clientSecret;
-	@SerializedName("access_token")
-	private String accessToken;
+	private DO_AccessToken accessTokenObject;
 	private String apiVersion = "v3";
 	private String grantType = "client_credentials";
+	private boolean debugMode = false;
 
 
 	/*
@@ -33,12 +31,6 @@ public class AccessToken {
 	public void setClientSecret(String clientSecret) {
 		this.clientSecret = clientSecret;
 	}
-	public String getAccessToken() {
-		return accessToken;
-	}
-	public void setAccessToken(String accessToken) {
-		this.accessToken = accessToken;
-	}
 	public String getApiVersion() {
 		return apiVersion;
 	}
@@ -51,5 +43,16 @@ public class AccessToken {
 	public void setGrantType(String grantType) {
 		this.grantType = grantType;
 	}
-
+	public boolean isDebugMode() {
+		return debugMode;
+	}
+	public void setDebugMode(boolean debugMode) {
+		this.debugMode = debugMode;
+	}
+	public DO_AccessToken getAccessTokenObject() {
+		return accessTokenObject;
+	}
+	public void setAccessTokenObject(DO_AccessToken accessTokenObject) {
+		this.accessTokenObject = accessTokenObject;
+	}
 }

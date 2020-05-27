@@ -17,6 +17,7 @@ import javax.ejb.RemoteHome;
 import javax.ejb.Stateless;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.sap.aii.af.lib.mp.module.Module;
 import com.sap.aii.af.lib.mp.module.ModuleContext;
 import com.sap.aii.af.lib.mp.module.ModuleData;
@@ -34,7 +35,8 @@ import com.sap.engine.interfaces.messaging.api.auditlog.AuditLogStatus;
 import com.sap.engine.interfaces.messaging.api.exception.InvalidParamException;
 import com.sap.engine.interfaces.messaging.api.exception.MessagingException;
 
-import dk.radius.java.modules.pojo.AccessToken;
+import dk.radius.java.modules.pojo.DO_AccessToken;
+import dk.radius.java.modules.pojo.DO_Authentication;
 
 /**
  * Session Bean implementation class GetAccessToken
@@ -49,41 +51,47 @@ public class Main implements Module {
 	private AuditAccess audit;
 	private MessageKey msgKey = null;
 	private Message msg = null;
-	private AccessToken ac = new AccessToken();
-	
+	private DO_Authentication ac = new DO_Authentication();
+
 
 	@PostConstruct
 	public void initializeResources() {
 		try {
 			audit = PublicAPIAccessFactory.getPublicAPIAccess().getAuditAccess();
 		} catch (MessagingException e) {
-			throw new RuntimeException("error in method 'initializeResources': " + e.getMessage());
+			throw new RuntimeException("Error in method 'initializeResources': " + e.getMessage());
 		}
 	}
-	
+
 	@Override
 	public ModuleData process(ModuleContext moduleContext, ModuleData inputModuleData) throws ModuleException {				
+
 		// Extract message input from module data
 		msg = (Message) inputModuleData.getPrincipalData();
 		msgKey = msg.getMessageKey();
-		
-		// Write to audit log
-		audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "GetAccessToken: Module start...");
-		
+
 		// Get module parameters
 		extractModuleParameters(moduleContext);
-		
+
+		// Write debug status to log
+		audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Debug mode set to: " + ac.isDebugMode());
+
+		if (ac.isDebugMode()) {
+			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "**** GetAccessToken: Module start ****");
+		}
+
 		// Start processing access token
 		processAccessToken(inputModuleData, msg);
-				
-		// Write to audit log
-		audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "GetAccessToken: Module end...");
-		
-		// Return payload
+
+
+		if (ac.isDebugMode()) {
+			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "**** GetAccessToken: Module end ****");
+		}
+
 		return inputModuleData;
 	}
 
-	
+
 	private void extractModuleParameters(ModuleContext moduleContext) {
 		// Extract data from context and set in pojo
 		ac.setAuthenticationUrl(moduleContext.getContextData("authenticationUrl"));
@@ -91,71 +99,117 @@ public class Main implements Module {
 		ac.setClientSecret(moduleContext.getContextData("pwd.clientSecret"));
 		ac.setGrantType(moduleContext.getContextData("grantType"));
 		ac.setApiVersion(moduleContext.getContextData("apiVersion"));
+		ac.setDebugMode(Boolean.parseBoolean(moduleContext.getContextData("debugEnabled")));
 	}
 
 	private void processAccessToken(ModuleData inputModuleData, Message msg) {		
 		// Get access token
 		getAccessToken();
-		
+
 		// Set access token in header
-		setDynamicConfiguration(msg, "accessTokenHeader", "http://sap.com/xi/XI/System/REST", ac.getAccessToken());
-		
+		setDynamicConfiguration(msg, "accessTokenHeader", "http://sap.com/xi/XI/System/REST", ac.getAccessTokenObject().accessToken);
+
 		// Set message data with new headers
 		inputModuleData.setPrincipalData(msg);
 	}
 
-	
+
 	private void getAccessToken() {
 		try {
+
+			if (ac.isDebugMode()) {
+				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Requesting access token from url: " + ac.getAuthenticationUrl());
+			}
+
 			URL url = new URL(ac.getAuthenticationUrl());
 			HttpURLConnection con = (HttpURLConnection) url.openConnection();
 			con.setRequestMethod("GET");
-			
+
 			// Create headers
 			con.setRequestProperty("client-id", ac.getClientId());
 			con.setRequestProperty("client-secret", ac.getClientSecret());
 			con.setRequestProperty("grant-type", ac.getGrantType());
 			con.setRequestProperty("api-version", ac.getApiVersion());
 
-			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Headers: " + con.getRequestProperties().toString());
-
-
-			if (con.getResponseCode() == 200) {
-				extractAccessTokenFromAuthResponse(con);
-			} else {
-				// TODO: Error handling
+			if (ac.isDebugMode()) {
+				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Using headers: " + con.getRequestProperties().toString());
 			}
+
+			extractAccessTokenFromAuthResponse(con);
+
+
 		} catch (MalformedURLException e) {
-			// TODO Auto-generated catch block
+			// TODO: Raise specific exception
+			audit.addAuditLogEntry(msgKey, AuditLogStatus.ERROR, "MalformedURLException: " + e.getMessage());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			// TODO: Raise specific exception
+			audit.addAuditLogEntry(msgKey, AuditLogStatus.ERROR, "IOException: " + e.getMessage());
 		}
 	}
 
-	
-	private void extractAccessTokenFromAuthResponse(HttpURLConnection con) throws IOException {
-		// Convert response to string
-		String response = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))
-			      .lines()
-			      .collect(Collectors.joining("\n"));
 
-		audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Response: " + response);
+	private void extractAccessTokenFromAuthResponse(HttpURLConnection con) {
 		
+		String response = convertConnectionResponseToString(con);
+
+		DO_AccessToken at = getAccessTokenDataFromResponse(response);
+		
+		ac.setAccessTokenObject(at);
+
+	}
+
+	private DO_AccessToken getAccessTokenDataFromResponse(String response) {
 		// Get access token data from response
-		Gson gson = new Gson();
-		ac = gson.fromJson(response, AccessToken.class);
+		DO_AccessToken at = null;
+		try {
+			Gson gson = new Gson();
+			 at = gson.fromJson(response, DO_AccessToken.class);
+
+			if (ac.isDebugMode()) {
+				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "AccessToken exctracted from response: " + at.accessToken);
+			}
+		} catch (JsonSyntaxException e) {
+			// TODO: handle exception
+		}
 		
-		audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "AccessToken found: " + ac.getAccessToken());
+		return at;
+	}
+
+	private String convertConnectionResponseToString(HttpURLConnection con) {
+		String response = null;
+		try {
+			// Convert response to string
+			response = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))
+					.lines()
+					.collect(Collectors.joining("\n"));
+
+			if (con.getResponseCode() != 200) {
+				audit.addAuditLogEntry(msgKey, AuditLogStatus.ERROR, "Error getting accesstoken: " + con.getResponseCode() + ": " + con.getResponseMessage());
+				throw new RuntimeException("DANG!");
+			}
+
+			if (ac.isDebugMode()) {
+				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Response data: " + response);
+			}
+			
+		} catch (IOException e) {
+			// TODO: Raise specific exeption
+		}
+		
+		return response;
 	}
 
 	private void setDynamicConfiguration(Message msg, String propertyName, String propertyNamespace, String propertyValue) {
-		
+
 		try {
 			MessagePropertyKey mpk = new MessagePropertyKey(propertyName, propertyNamespace);
 			msg.setMessageProperty(mpk, propertyValue);
-			// Write to audit log
-			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "GetAccessToken: set '" + propertyName + "': " + propertyValue);
+
+			if (ac.isDebugMode()) {
+				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Setting dynamic header: \"" + propertyName + "\": " + propertyValue);
+			}
 		} catch (InvalidParamException e) {
+			// TODO: Raise specific exception
 			throw new RuntimeException("Error setting 'accessTokenHeader': " + e.getMessage());
 		}
 	}
