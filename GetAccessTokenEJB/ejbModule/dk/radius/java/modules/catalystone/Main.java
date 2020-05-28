@@ -83,7 +83,7 @@ public class Main implements Module {
 			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Debug mode set to: " + ac.isDebugMode());
 
 			// Start processing access token
-			processAccessToken(inputModuleData, msg);
+			start(inputModuleData, msg);
 
 		} catch (AccessTokenException e) {
 			// Write error to log
@@ -102,8 +102,14 @@ public class Main implements Module {
 		return inputModuleData;
 	}
 
-
+	
+	/**
+	 * Extract adapter module parameters set in communication channel.
+	 * @param moduleContext carries the context information which might be used by an XI AF module to access the current channel ID
+	 * @throws ValidationException
+	 */
 	private void extractModuleParameters(ModuleContext moduleContext) throws ValidationException {
+		
 		// Extract data from context and set in pojo
 		ac.setAuthenticationUrl(moduleContext.getContextData("authenticationUrl"));
 		ac.setClientId(moduleContext.getContextData("clientId"));
@@ -119,7 +125,13 @@ public class Main implements Module {
 	}
 
 
-	private void processAccessToken(ModuleData inputModuleData, Message msg) throws AccessTokenException {		
+	/**
+	 * Start the process of getting "AccessToken" from authentication server set in adapter module.
+	 * @param inputModuleData is the container which carries the module input data and module output data
+	 * @param msg A <i>Message</i> is what an application sends or receives when interacting with the Messaging System
+	 * @throws AccessTokenException
+	 */
+	private void start(ModuleData inputModuleData, Message msg) throws AccessTokenException {		
 		// Get access token
 		getAccessToken();
 
@@ -130,7 +142,11 @@ public class Main implements Module {
 		inputModuleData.setPrincipalData(msg);
 	}
 
-
+	
+	/**
+	 * Get "AccessToken" from authentication server set in adapter module.
+	 * @throws AccessTokenException
+	 */
 	private void getAccessToken() throws AccessTokenException {
 
 		// Create connection to authentication server
@@ -141,6 +157,11 @@ public class Main implements Module {
 	}
 
 
+	/**
+	 * Create an <i>HttpURLConnection</i> using data set in adapter module
+	 * @return HttpURLConnection
+	 * @throws AccessTokenException
+	 */
 	private HttpURLConnection createAccessTokenConnection() throws AccessTokenException {
 		HttpURLConnection con = null;
 		try {
@@ -163,6 +184,10 @@ public class Main implements Module {
 	}
 
 
+	/**
+	 * Create request headers based on values set in adapter module
+	 * @param con <i>HttpURLConnection</i> to authentication server
+	 */
 	private void createRequestHeaders(HttpURLConnection con) {
 
 		if (ac.isDebugMode()) {
@@ -173,11 +198,14 @@ public class Main implements Module {
 		con.setRequestProperty("client-secret", ac.getClientSecret());
 		con.setRequestProperty("grant-type", ac.getGrantType());
 		con.setRequestProperty("api-version", ac.getApiVersion());
-
-
 	}
 
 
+	/**
+	 * Extracts "AccessToken" from authentication server response and sets if for later use.
+	 * @param con <i>HttpURLConnection</i> to authentication server
+	 * @throws AccessTokenException
+	 */
 	private void extractAccessTokenFromAuthResponse(HttpURLConnection con) throws AccessTokenException {
 		// Get response string
 		String response = convertConnectionResponseToString(con);
@@ -190,6 +218,13 @@ public class Main implements Module {
 	}
 
 
+	/**
+	 * Convert response from authentication server using <i>gson api</i>
+	 * @param response <i>String</i> raw authentication server response.
+	 * @return <i>DO_AccessToken</i> "AccessToken" object containing response data
+	 * @see <a href="https://sites.google.com/site/gson/gson-user-guide">gson documentation</a>
+	 * @throws AccessTokenException
+	 */
 	private DO_AccessToken getAccessTokenDataFromResponse(String response) throws AccessTokenException {
 		DO_AccessToken at = null;
 
@@ -210,6 +245,12 @@ public class Main implements Module {
 	}
 
 
+	/**
+	 * Convert <i>HttpURLConnection -> InputStream</i> to <i>String</i>.
+	 * @param con <i>HttpURLConnection</i> to authentication server
+	 * @return <i>String</i> response from authentication server
+	 * @throws AccessTokenException
+	 */
 	private String convertConnectionResponseToString(HttpURLConnection con) throws AccessTokenException {
 		String response = null;
 		try {
@@ -240,6 +281,14 @@ public class Main implements Module {
 	}
 
 
+	/**
+	 * Set dynamic configuration data (this can later be fetched in communication channel).
+	 * @param msg A <i>Message</i> is what an application sends or receives when interacting with the Messaging System
+	 * @param propertyName <i>String</i> dynamic configuration: name to reference when reading from dynamic configuration
+	 * @param propertyNamespace <i>String</i> dynamic configuration: namespace (eg. http://sap.com/xi/XI/System/REST)
+	 * @param propertyValue <i>String</i> dynamic configuration: value returned when reading dynamic configuration using <b>propertyName</b>
+	 * @throws AccessTokenException
+	 */
 	private void setDynamicConfiguration(Message msg, String propertyName, String propertyNamespace, String propertyValue) throws AccessTokenException {
 
 		try {

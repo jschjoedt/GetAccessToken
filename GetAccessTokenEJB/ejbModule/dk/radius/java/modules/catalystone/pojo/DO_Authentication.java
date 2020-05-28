@@ -17,11 +17,16 @@ public class DO_Authentication {
 	private String adapterType;
 	private boolean debugMode = false;
 	private List<String> supportedAdapterTypes = Arrays.asList(new String[]{"REST", "HTTP", "SOAP"});
-	private final String DYNAMIC_CONFIGURATION_PROPERTY_NAMESPACE = "http://sap.com/xi/XI/System/";
 	
+	private final String DYNAMIC_CONFIGURATION_PROPERTY_NAMESPACE = "http://sap.com/xi/XI/System/";
 	private final String ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER = "###PLACEHODER###";
 	private final String ERROR_MESSAGE_MODULE_PARAMETER_EMPTY = "ModuleParameter \"" + ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER + "\" must have a value!\"";
 
+	
+	/**
+	 * Validate class attributes.
+	 * @throws ValidationException
+	 */
 	public void validate() throws ValidationException {
 		ArrayList<String> errorMessages = new ArrayList<String>();
 		String errorMessage;
@@ -81,6 +86,12 @@ public class DO_Authentication {
 		}	
 	}
 
+	
+	/**
+	 * Validates the format of a url.
+	 * @param urlToValidate
+	 * @return boolean result of validation
+	 */
 	private boolean urlIsValid(String urlToValidate) {
 		boolean isValid = false;
 		
@@ -95,6 +106,7 @@ public class DO_Authentication {
 		return isValid;	
 	}
 
+	
 	/*
 	 * Getters and setters
 	 */
