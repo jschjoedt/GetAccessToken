@@ -1,4 +1,4 @@
-package dk.radius.java.modules;
+package dk.radius.java.modules.catalystone;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -34,9 +34,10 @@ import com.sap.engine.interfaces.messaging.api.auditlog.AuditLogStatus;
 import com.sap.engine.interfaces.messaging.api.exception.InvalidParamException;
 import com.sap.engine.interfaces.messaging.api.exception.MessagingException;
 
-import dk.radius.java.modules.pojo.DO_AccessToken;
-import dk.radius.java.modules.pojo.DO_AccessTokenError;
-import dk.radius.java.modules.pojo.DO_Authentication;
+import dk.radius.java.modules.catalystone.pojo.DO_AccessToken;
+import dk.radius.java.modules.catalystone.pojo.DO_AccessTokenError;
+import dk.radius.java.modules.catalystone.pojo.DO_Authentication;
+import dk.radius.java.modules.catalystone.pojo.ValidationException;
 
 /**
  * Session Bean implementation class GetAccessToken
@@ -64,36 +65,37 @@ public class Main implements Module {
 		}
 	}
 
+
 	@Override
 	public ModuleData process(ModuleContext moduleContext, ModuleData inputModuleData) throws ModuleException {				
 
 		// Extract message input from module data
 		msg = (Message) inputModuleData.getPrincipalData();
 		msgKey = msg.getMessageKey();
-
-		// Get module parameters
-		extractModuleParameters(moduleContext);
-
-		// Write debug status to log
-		audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Debug mode set to: " + ac.isDebugMode());
-
-		if (ac.isDebugMode()) {
-			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "**** GetAccessToken: Module start ****");
-		}
-
+		
+		audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "**** GetAccessToken: Module start ****");
+		
 		try {
+			// Get module parameters
+			extractModuleParameters(moduleContext);
+
+			// Write debug status to log
+			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Debug mode set to: " + ac.isDebugMode());
+
 			// Start processing access token
 			processAccessToken(inputModuleData, msg);
-			
+
 		} catch (AccessTokenException e) {
 			// Write error to log
 			audit.addAuditLogEntry(msgKey, AuditLogStatus.ERROR, e.getMessage());
 			// Terminate processing
 			throw new RuntimeException(e.getMessage());
-		}
-
-
-		if (ac.isDebugMode()) {
+		} catch (ValidationException e) {
+			// Write error to log
+			audit.addAuditLogEntry(msgKey, AuditLogStatus.ERROR, e.getMessage());
+			// Terminate processing
+			throw new RuntimeException(e.getMessage());
+		} finally {
 			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "**** GetAccessToken: Module end ****");
 		}
 
@@ -101,7 +103,7 @@ public class Main implements Module {
 	}
 
 
-	private void extractModuleParameters(ModuleContext moduleContext) {
+	private void extractModuleParameters(ModuleContext moduleContext) throws ValidationException {
 		// Extract data from context and set in pojo
 		ac.setAuthenticationUrl(moduleContext.getContextData("authenticationUrl"));
 		ac.setClientId(moduleContext.getContextData("clientId"));
@@ -109,14 +111,20 @@ public class Main implements Module {
 		ac.setGrantType(moduleContext.getContextData("grantType"));
 		ac.setApiVersion(moduleContext.getContextData("apiVersion"));
 		ac.setDebugMode(Boolean.parseBoolean(moduleContext.getContextData("debugEnabled")));
+		ac.setDynamicConfigurationPropertyName(moduleContext.getContextData("accessTokenHeaderName"));
+		ac.setAdapterType(moduleContext.getContextData("adapterType"));
+
+		// Validate module parameter values
+		ac.validate();
 	}
+
 
 	private void processAccessToken(ModuleData inputModuleData, Message msg) throws AccessTokenException {		
 		// Get access token
 		getAccessToken();
 
 		// Set access token in header
-		setDynamicConfiguration(msg, "accessTokenHeader", "http://sap.com/xi/XI/System/REST", ac.getAccessTokenObject().accessToken);
+		setDynamicConfiguration(msg, ac.getDynamicConfigurationPropertyName(), ac.getDynamicConfigurationPropertyNamespace(), ac.getAccessTokenObject().accessToken);
 
 		// Set message data with new headers
 		inputModuleData.setPrincipalData(msg);
@@ -124,10 +132,10 @@ public class Main implements Module {
 
 
 	private void getAccessToken() throws AccessTokenException {
-		
+
 		// Create connection to authentication server
 		HttpURLConnection con = createAccessTokenConnection();
-		
+
 		// Get data from response
 		extractAccessTokenFromAuthResponse(con);
 	}
@@ -150,9 +158,10 @@ public class Main implements Module {
 			String errorMessage = "Error creating Http connection to authentication server with url: " + ac.getAuthenticationUrl();
 			throw new AccessTokenException(errorMessage);
 		}
-		
+
 		return con;
 	}
+
 
 	private void createRequestHeaders(HttpURLConnection con) {
 
@@ -168,6 +177,7 @@ public class Main implements Module {
 
 	}
 
+
 	private void extractAccessTokenFromAuthResponse(HttpURLConnection con) throws AccessTokenException {
 		// Get response string
 		String response = convertConnectionResponseToString(con);
@@ -178,6 +188,7 @@ public class Main implements Module {
 		// Set access token data
 		ac.setAccessTokenObject(at);
 	}
+
 
 	private DO_AccessToken getAccessTokenDataFromResponse(String response) throws AccessTokenException {
 		DO_AccessToken at = null;
@@ -198,6 +209,7 @@ public class Main implements Module {
 		return at;
 	}
 
+
 	private String convertConnectionResponseToString(HttpURLConnection con) throws AccessTokenException {
 		String response = null;
 		try {
@@ -207,12 +219,12 @@ public class Main implements Module {
 					.collect(Collectors.joining("\n"));
 
 			if (con.getResponseCode() != 200) {
-				// Get error data from json response
+				// Get error data from JSON response
 				DO_AccessTokenError ate = gson.fromJson(response, DO_AccessTokenError.class);
-				
+
 				// Throw exception
-				String msg = "Error getting AccessToken with server code: " + con.getResponseCode() + " and message: " + ate.message;
-				throw new AccessTokenException(msg);
+				String errorMessage = "Error getting AccessToken with server code: " + con.getResponseCode() + " and message: " + ate.message;
+				throw new AccessTokenException(errorMessage);
 			}
 
 			if (ac.isDebugMode()) {
@@ -220,11 +232,13 @@ public class Main implements Module {
 			}
 
 		} catch (IOException e) {
-			
+			String errorMessage = "Error getting response from HttpConnection inputStream: " + e.getMessage();
+			throw new AccessTokenException(errorMessage);
 		}
 
 		return response;
 	}
+
 
 	private void setDynamicConfiguration(Message msg, String propertyName, String propertyNamespace, String propertyValue) throws AccessTokenException {
 
@@ -233,7 +247,9 @@ public class Main implements Module {
 			msg.setMessageProperty(mpk, propertyValue);
 
 			if (ac.isDebugMode()) {
-				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Setting dynamic header: \"" + propertyName + "\": " + propertyValue);
+				audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Setting dynamic header: \"" + propertyName + "\": " 
+																		+ propertyValue
+																		+ "(" + propertyNamespace + ")");
 			}
 		} catch (InvalidParamException e) {
 			String errorMessage = "Error setting \"accessTokenHeader\" in dynamic configuration: " + e.getMessage();

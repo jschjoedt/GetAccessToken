@@ -1,4 +1,4 @@
-package dk.radius.java.modules.pojo;
+package dk.radius.java.modules.catalystone.pojo;
 
 public class DO_AccessTokenError {
 	

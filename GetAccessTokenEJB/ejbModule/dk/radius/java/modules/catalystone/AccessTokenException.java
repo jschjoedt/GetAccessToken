@@ -1,4 +1,4 @@
-package dk.radius.java.modules;
+package dk.radius.java.modules.catalystone;
 
 public class AccessTokenException extends Exception {
 	private static final long serialVersionUID = 721431621698066476L;
