@@ -1,4 +1,4 @@
-package dk.radius.java.modules.catalystone.pojo;
+package dk.radius.java.module.catalystone.pojo;
 
 import java.net.MalformedURLException;
 import java.net.URL;

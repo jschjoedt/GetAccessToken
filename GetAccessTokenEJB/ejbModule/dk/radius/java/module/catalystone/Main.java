@@ -1,4 +1,4 @@
-package dk.radius.java.modules.catalystone;
+package dk.radius.java.module.catalystone;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -34,10 +34,10 @@ import com.sap.engine.interfaces.messaging.api.auditlog.AuditLogStatus;
 import com.sap.engine.interfaces.messaging.api.exception.InvalidParamException;
 import com.sap.engine.interfaces.messaging.api.exception.MessagingException;
 
-import dk.radius.java.modules.catalystone.pojo.DO_AccessToken;
-import dk.radius.java.modules.catalystone.pojo.DO_AccessTokenError;
-import dk.radius.java.modules.catalystone.pojo.DO_Authentication;
-import dk.radius.java.modules.catalystone.pojo.ValidationException;
+import dk.radius.java.module.catalystone.pojo.DO_AccessToken;
+import dk.radius.java.module.catalystone.pojo.DO_AccessTokenError;
+import dk.radius.java.module.catalystone.pojo.DO_Authentication;
+import dk.radius.java.module.catalystone.pojo.ValidationException;
 
 /**
  * Session Bean implementation class GetAccessToken
