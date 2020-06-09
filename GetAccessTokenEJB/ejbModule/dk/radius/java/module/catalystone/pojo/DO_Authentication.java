@@ -20,7 +20,12 @@ public class DO_Authentication {
 	
 	private final String DYNAMIC_CONFIGURATION_PROPERTY_NAMESPACE = "http://sap.com/xi/XI/System/";
 	private final String ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER = "###PLACEHODER###";
-	private final String ERROR_MESSAGE_MODULE_PARAMETER_EMPTY = "ModuleParameter \"" + ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER + "\" must have a value!\"";
+	private final String ERROR_MESSAGE_MODULE_PARAMETER_EMPTY = "ModuleParameter \"" 
+															  + ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER 
+															  + "\" must have a value!\"";
+	private final String ERROR_MESSAGE_MODULE_PARAMETER_NULL  = "ModuleParameter \"" 
+															  + ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER 
+													  	      + "\" is a mandatory parameter, please add it to the module!\"";
 
 	
 	/**
@@ -31,7 +36,11 @@ public class DO_Authentication {
 		ArrayList<String> errorMessages = new ArrayList<String>();
 		String errorMessage;
 		
-		if (authenticationUrl.equals("")) {
+		if(authenticationUrl == null) {
+			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_NULL.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "authenticationUrl");
+			errorMessages.add(errorMessage);
+		}
+		else if (authenticationUrl.equals("")) {
 			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_EMPTY.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "authenticationUrl");
 			errorMessages.add(errorMessage);
 		} else if (!urlIsValid(authenticationUrl)) {
@@ -39,33 +48,57 @@ public class DO_Authentication {
 			errorMessages.add(errorMessage);
 		}
 		
-		if(clientId.equals("")) {
+		if(clientId == null) {
+			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_NULL.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "clientId");
+			errorMessages.add(errorMessage);
+		}
+		else if(clientId.equals("")) {
 			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_EMPTY.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "clientId");
 			errorMessages.add(errorMessage);
 		}
 		
-		if(clientSecret.equals("")) {	
+		if(clientSecret == null) {
+			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_NULL.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "clientSecret");
+			errorMessages.add(errorMessage);
+		}
+		else if(clientSecret.equals("")) {	
 			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_EMPTY.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "clientSecret");
 			errorMessages.add(errorMessage);
 		}
 		
-		if(apiVersion.equals("")) {
+		if(apiVersion == null) {
+			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_NULL.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "apiVersion");
+			errorMessages.add(errorMessage);
+		}
+		else if(apiVersion.equals("")) {
 			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_EMPTY.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "apiVersion");
 			errorMessages.add(errorMessage);
 		}
 		
-		if(grantType.equals("")) {
+		if(grantType == null) {
+			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_NULL.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "grantType");
+			errorMessages.add(errorMessage);
+		}
+		else if(grantType.equals("")) {
 			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_EMPTY.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "grantType");
 			errorMessages.add(errorMessage);
 		}
 		
-		if(dynamicConfigurationPropertyName.equals("")) {
+		if(dynamicConfigurationPropertyName == null) {
+			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_NULL.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "accessTokenHeaderName");
+			errorMessages.add(errorMessage);
+		}
+		else if(dynamicConfigurationPropertyName.equals("")) {
 			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_EMPTY.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "accessTokenHeaderName");
 			errorMessages.add(errorMessage);
 		}
 		
-		if(adapterType.equals("")) {
-			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_EMPTY.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "accessTokenHeaderName");
+		if(adapterType == null) {
+			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_NULL.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "adapterType");
+			errorMessages.add(errorMessage);
+		}
+		else if(adapterType.equals("")) {
+			errorMessage = ERROR_MESSAGE_MODULE_PARAMETER_EMPTY.replace(ERROR_MESSAGE_MODULE_PARAMTER_PLACEHOLDER, "adapterType");
 			errorMessages.add(errorMessage);
 		} else {
 			// If value is found, check that it is a supported one

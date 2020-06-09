@@ -120,6 +120,9 @@ public class Main implements Module {
 		ac.setDynamicConfigurationPropertyName(moduleContext.getContextData("accessTokenHeaderName"));
 		ac.setAdapterType(moduleContext.getContextData("adapterType"));
 
+		if (ac.isDebugMode()) {
+			audit.addAuditLogEntry(msgKey, AuditLogStatus.SUCCESS, "Module paramaters extracted...");
+		}
 		// Validate module parameter values
 		ac.validate();
 	}
